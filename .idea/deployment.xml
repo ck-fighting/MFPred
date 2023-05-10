@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="All Project (3)" remoteFilesAllowedToDisappearOnAutoupload="false">
+    <serverData>
+      <paths name="All Project (2)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/media/disk/chenkai/ncRNA_Family_Prediction" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="All Project (3)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/media/disk/chenkai/ncRNA_Family_Prediction" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="chenkai@59.72.109.217:13404 (3)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/media/disk/chenkai/ncRNA_Family_Prediction" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>
