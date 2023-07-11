@@ -6,10 +6,11 @@ from torch.autograd import Variable
 from torch.nn.utils.rnn import pad_sequence
 from torch.nn import utils as nn_utils
 import os
-from Model import LSTM_Attention
-from Data_Create import word2vec
+from Model import ImproveCNN
+from Data_Create import one_hot
+import torch.nn.functional as F
 
-PATH_Model = 'Trained-Model/LSTM_Attention'
+PATH_Model = 'Trained_model/nRC/CNNImporved'
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 class MinimalDataset(Dataset):
     def __init__(self, data, label):
@@ -28,25 +29,23 @@ def collate_fn(batch_data):
     label = [xi[1] for xi in batch_data]#存放32个RNA序列的类别
     padden_sent_seq = pad_sequence([torch.from_numpy(x) for x in sent_seq], batch_first=True, padding_value=0)#将所有RNA序列填充到32个RNA序列里面最长的长度
     return padden_sent_seq, data_length, torch.tensor(label, dtype=torch.float32)
-Train_Data, Train_Label = word2vec.train_data()#获取RNA碱基信息
-Test_Data, Test_Label = word2vec.test_data()#获取RNA标签信息
-model = LSTM_Attention.LSTM_Attention()#调用模型BI-GRU+AM+Densenet
-# model = Model1.RNAProfileModel(Model1.Residual_Block,[2,2,2,2])
-# model = ResNet_Attention.resnet18_rga()
-# model = CNN.ImporovedCNN()
-# model = LSTM_Attention.LSTM_Attention()
-# model = ResNet_A.ResNet(ResNet_A.ResidualBlock, [3, 4, 6, 3])
-# model = ResNet_CMBA.resnet18()
+Train_Data, Train_Label = one_hot.train_data()#获取RNA碱基信息
+Test_Data, Test_Label = one_hot.test_data()#获取RNA标签信息
+print(Train_Label.shape)
+print(Test_Label.shape)
+model = ImproveCNN.CNNModelImproved1D(13)#调用模型BI-GRU+AM+Densenet
 if torch.cuda.is_available():
     model = model.cuda()#判断gpu是否可用
 train_data = MinimalDataset(Train_Data, Train_Label)
 test_data = MinimalDataset(Test_Data, Test_Label)
 criterion = nn.CrossEntropyLoss()#定义损失函数
-optimer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=0.0001)#优化器用于更新参数权重
-data_loader = DataLoader(train_data, batch_size=32, shuffle=True, collate_fn=collate_fn)#用于将train_data数据划分批次，每个批次包含32个RNA序列，划分依据collate_fn函数
-data_loader_test = DataLoader(test_data, batch_size=32, shuffle=True, collate_fn=collate_fn)#用于将test_data数据划分批次，每个批次包含32个RNA序列，划分依据collate_fn函数
+optimer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=0.0001)#优化器用于更新参数权重
+data_loader = DataLoader(train_data, batch_size=128, shuffle=True, collate_fn=collate_fn,drop_last=True)#用于将train_data数据划分批次，每个批次包含32个RNA序列，划分依据collate_fn函数
+data_loader_test = DataLoader(test_data, batch_size=128, shuffle=True, collate_fn=collate_fn,drop_last=True)#用于将test_data数据划分批次，每个批次包含32个RNA序列，划分依据collate_fn函数
 model.eval()#pytorch框架自动设置Dropout层和BN层，该语句是不启用，因为首先进行预测没有进行训练模型
 max_acc = 0
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
 with torch.no_grad():#加速节省GPU空间
     correct = 0 #预测正确的个数
     total = 0 #改批次下的RNA总数
@@ -62,8 +61,14 @@ with torch.no_grad():#加速节省GPU空间
         if torch.cuda.is_available():#判断gpu是否可用，可用的话在gpu上处理train_data和train_label数据
             train_data = train_data.cuda()
             train_label = train_label.cuda()
-        pack = nn_utils.rnn.pack_padded_sequence(train_data, train_length, batch_first=True)#将该批次所有RNA序列里面的碱基提取出来，就是一个解填充过程
-        outputs = model(pack)#将pack数据放入到model模型中
+        if(train_data.size(1) < 256):
+            pad_length = 256 - train_data.size(1) + 1
+            # 在最后一个维度上进行填充
+            train_data = F.pad(train_data, (0, 0, 0, pad_length), value=0)
+        print(train_data.shape)
+        # pack = nn_utils.rnn.pack_padded_sequence(train_data, train_length, batch_first=True)#将该批次所有RNA序列里面的碱基提取出来，就是一个解填充过程
+        model.linear1 = nn.Linear(256 * (train_data.shape[1] // 256), 128).to(device)
+        outputs = model(train_data)#将pack数据放入到model模型中
         loss = criterion(outputs, train_label)#根据输出结果和原来的rna标签计算损失率
         loss_totall += loss.data.item()#将每一批次的损失率加起来
         iii += 1 #共有多少批次
@@ -88,8 +93,12 @@ with torch.no_grad():
         if torch.cuda.is_available():
             train_data = train_data.cuda()
             train_label = train_label.cuda()
-        pack = nn_utils.rnn.pack_padded_sequence(train_data, train_length, batch_first=True)
-        outputs = model(pack)
+        if(train_data.size(1) < 256):
+            pad_length = 256 - train_data.size(1) + 1
+            # 在最后一个维度上进行填充
+            train_data = F.pad(train_data, (0, 0, 0, pad_length), value=0)
+        model.linear1 = nn.Linear(256 * (train_data.shape[1] // 256), 128).to(device)
+        outputs = model(train_data)#将pack数据放入到model模型中
         loss = criterion(outputs, train_label)
         loss_totall += loss.data.item()
         iii += 1
@@ -113,15 +122,19 @@ for j in range(100):#开始模型训练，一共训练100次
         if torch.cuda.is_available():#判断gpu是否可用，可用的话在gpu上处理train_data和train_label数据
             train_data = train_data.cuda()
             train_label = train_label.cuda()
-        pack = nn_utils.rnn.pack_padded_sequence(train_data, train_length, batch_first=True)#将该批次所有RNA序列里面的碱基提取出来，就是一个解填充过程
-        outputs = model(pack)#将pack数据放入到model模型中
+        if(train_data.size(1) < 256):
+            pad_length = 256 - train_data.size(1) + 1
+            # 在最后一个维度上进行填充
+            train_data = F.pad(train_data, (0, 0, 0, pad_length), value=0)
+        model.linear1 = nn.Linear(256 * (train_data.shape[1] // 256), 128).to(device)
+        outputs = model(train_data)#将pack数据放入到model模型中
         _, pred_acc = torch.max(outputs.data, 1)#pred_acc返回预测结果
         correct = (pred_acc == train_label).sum()#将pred_acc和correct相比，计算出预测正确的rna个数，之后将每一批次预测正确的相加
         loss = criterion(outputs, train_label)#根据输出结果和原来的rna标签计算损失率
         optimer.zero_grad()#清空过往梯度
         loss.backward()#计算当前梯度，反向传播
         optimer.step()#模型更新
-        if(i % 100 == 0 or i == 1280 ):#每十批次显示一次该次模型训练的准确率和损失率
+        if(i % 10 == 0 or i == 178):#每十批次显示一次该次模型训练的准确率和损失率
             print(('Epoch:[{}/{}], Step[{}/{}], loss:{:.4f}, Accuracy:{:.4f}'.format(j+1, 100, i, 1280, loss.data.item(), 100 * correct / num)))
 
 
@@ -141,8 +154,12 @@ for j in range(100):#开始模型训练，一共训练100次
             if torch.cuda.is_available():
                 train_data = train_data.cuda()
                 train_label = train_label.cuda()
-            pack = nn_utils.rnn.pack_padded_sequence(train_data, train_length, batch_first=True)
-            outputs = model(pack)
+            if (train_data.size(1) < 256):
+                pad_length = 256 - train_data.size(1) + 1
+                # 在最后一个维度上进行填充
+                train_data = F.pad(train_data, (0, 0, 0, pad_length), value=0)
+            model.linear1 = nn.Linear(256 * (train_data.shape[1] // 256), 128).to(device)
+            outputs = model(train_data)  # 将pack数据放入到model模型中
             loss = criterion(outputs, train_label)
             loss_totall += loss.data.sum()
             iii += 1
@@ -167,8 +184,12 @@ for j in range(100):#开始模型训练，一共训练100次
             if torch.cuda.is_available():
                 train_data = train_data.cuda()
                 train_label = train_label.cuda()
-            pack = nn_utils.rnn.pack_padded_sequence(train_data, train_length, batch_first=True)
-            outputs = model(pack)
+            if (train_data.size(1) < 256):
+                pad_length = 256 - train_data.size(1) + 1
+                # 在最后一个维度上进行填充
+                train_data = F.pad(train_data, (0, 0, 0, pad_length), value=0)
+            model.linear1 = nn.Linear(256 * (train_data.shape[1] // 256), 128).to(device)
+            outputs = model(train_data)  # 将pack数据放入到model模型中
             loss = criterion(outputs, train_label)
             loss_totall += loss.data.item()
             iii += 1

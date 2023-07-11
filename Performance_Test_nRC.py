@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from torch.nn.utils.rnn import pad_sequence
 from torch.nn import utils as nn_utils
-from Data_Create import DCN_NP
+from Data_Create import one
 import pandas as pd
 import os
 
@@ -28,8 +28,8 @@ def collate_fn(batch_data):
     label = [xi[1] for xi in batch_data]
     padden_sent_seq = pad_sequence([torch.from_numpy(x) for x in sent_seq], batch_first=True, padding_value=0)
     return padden_sent_seq, data_length, torch.tensor(label, dtype=torch.float32)
-Train_Data, Train_Label = DCN_NP.train_data()
-Test_Data, Test_Label = DCN_NP.test_data()
+Train_Data, Train_Label = one_hot.train_data()
+Test_Data, Test_Label = one_hot.test_data()
 model = torch.load(PATH_Model)
 if torch.cuda.is_available():
     model = model.cuda()
@@ -58,7 +58,8 @@ with torch.no_grad():
         if torch.cuda.is_available():
             train_data = train_data.cuda()
             train_label = train_label.cuda()
-        pack = nn_utils.rnn.pack_padded_sequence(train_data, train_length, batch_first=True)
+        # pack = nn_utils.rnn.pack_padded_sequence(train_data, train_length, batch_first=True)
+        print(train_data.shape)
         outputs = model(pack)
         loss = criterion(outputs, train_label)
         loss_totall += loss.data.item()

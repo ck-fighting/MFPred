@@ -5,7 +5,6 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from torch.nn.utils.rnn import pad_sequence
 from torch.nn import utils as nn_utils
-from Data_Create import data_process_nRC2
 import pandas as pd
 import os
 import numpy as np
@@ -13,11 +12,11 @@ import numpy as np
 
 
 
-PATH_Model_word2vec = 'Trained_Model/GRU/word2vec_nRC5'
-PATH_Model_DCN = 'Trained_Model/GRU/DCN_nRC5'
-PATH_Model_kmer = 'Trained_Model/GRU/kmer_nRC5'
-PATH_Model_GCN = 'Trained_Model/GRU/GCN_nRC5'
-PATH_Model_CNN = 'Trained_Model/CNN/ResNet_SE_nRC5'
+PATH_Model_word2vec = 'Trained_model/NCY/GRU/word2vec_fold1'
+PATH_Model_DCN = 'Trained_model/NCY/GRU/NCP_fold1'
+PATH_Model_kmer = 'Trained_model/NCY/GRU/kmer_fold1'
+PATH_Model_GCN = 'Trained_model/NCY/GRU/GCN_fold1'
+PATH_Model_CNN = 'Trained_model/NCY/CNN/ResNet_SE_fold1'
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 class MinimalDataset(Dataset):
     def __init__(self, data, label):
@@ -37,7 +36,12 @@ def collate_fn(batch_data):
     padden_sent_seq = pad_sequence([torch.from_numpy(x) for x in sent_seq], batch_first=True, padding_value=0)
     return padden_sent_seq, data_length, torch.tensor(label, dtype=torch.float32)
 
-Test_Data_word2vec, Test_Data_DCN, Test_Data_kmer, Test_Data_GCN, Test_Label = data_process_nRC2.test_data()  # 获取RNA标签信息
+Test_Data_word2vec = np.load('F:/桌面/ck 返稿修改/MFPred-master/Encoded_data/NCY/fold1/word2vec_test.npy', allow_pickle=True)
+Test_Data_NCP = np.load('F:/桌面/ck 返稿修改/MFPred-master/Encoded_data/NCY/fold1/NCP_ND_test.npy', allow_pickle=True)
+Test_Data_kmer = np.load('F:/桌面/ck 返稿修改/MFPred-master/Encoded_data/NCY/fold1/kmer_test.npy', allow_pickle=True)
+Test_Data_GCN = np.load('F:/桌面/ck 返稿修改/MFPred-master/Encoded_data/NCY/fold1/GCN_test.npy', allow_pickle=True)
+Test_Label = np.load('F:/桌面/ck 返稿修改/MFPred-master/Encoded_data/NCY/fold1/test_label.npy', allow_pickle=True)
+
 lstm_word2vec = torch.load(PATH_Model_word2vec)  # 调用模型BI-GRU+AM+Densenet
 lstm_DCN = torch.load(PATH_Model_DCN)
 lstm_kmer = torch.load(PATH_Model_kmer)
@@ -52,7 +56,7 @@ if torch.cuda.is_available():
     model = model.cuda()  # 判断gpu是否可用
 
 test_data_word2vec = MinimalDataset(Test_Data_word2vec, Test_Label)
-test_data_DCN = MinimalDataset(Test_Data_DCN, Test_Label)
+test_data_NCP = MinimalDataset(Test_Data_NCP, Test_Label)
 test_data_kmer = MinimalDataset(Test_Data_kmer, Test_Label)
 test_data_GCN = MinimalDataset(Test_Data_GCN, Test_Label)
 
@@ -63,13 +67,13 @@ optimer_kmer = optim.Adam(lstm_kmer.parameters(), lr=0.0001, weight_decay=0.0001
 optimer_GCN = optim.Adam(lstm_GCN.parameters(), lr=0.0001, weight_decay=0.0001)
 optimer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=0.0001)  # 优化器用于更新参数权重
 
-data_loader_test_word2vec = DataLoader(test_data_word2vec, batch_size=32, shuffle=True, collate_fn=collate_fn)  # 用于将test_data数据划分批次，每个批次包含32个RNA序列，划分依据collate_fn函数
+data_loader_test_word2vec = DataLoader(test_data_word2vec, batch_size=32, shuffle=False, collate_fn=collate_fn)  # 用于将test_data数据划分批次，每个批次包含32个RNA序列，划分依据collate_fn函数
 
-data_loader_test_DCN = DataLoader(test_data_DCN, batch_size=32, shuffle=True,collate_fn=collate_fn)  # 用于将test_data数据划分批次，每个批次包含32个RNA序列，划分依据collate_fn函数
+data_loader_test_DCN = DataLoader(test_data_NCP, batch_size=32, shuffle=False,collate_fn=collate_fn)  # 用于将test_data数据划分批次，每个批次包含32个RNA序列，划分依据collate_fn函数
 
-data_loader_test_kmer = DataLoader(test_data_kmer, batch_size=32, shuffle=True,collate_fn=collate_fn)  # 用于将test_data数据划分批次，每个批次包含32个RNA序列，划分依据collate_fn函数
+data_loader_test_kmer = DataLoader(test_data_kmer, batch_size=32, shuffle=False,collate_fn=collate_fn)  # 用于将test_data数据划分批次，每个批次包含32个RNA序列，划分依据collate_fn函数
 
-data_loader_test_GCN = DataLoader(test_data_GCN, batch_size=32, shuffle=True,collate_fn=collate_fn)  # 用于将test_data数据划分批次，每个批次包含32个RNA序列，划分依据collate_fn函数
+data_loader_test_GCN = DataLoader(test_data_GCN, batch_size=32, shuffle=False,collate_fn=collate_fn)  # 用于将test_data数据划分批次，每个批次包含32个RNA序列，划分依据collate_fn函数
 
 lstm_word2vec.eval()
 lstm_DCN.eval()
@@ -156,4 +160,4 @@ name = ['Real Label', 'Predict Label']
 
 Pre_Data = pd.DataFrame(columns=name, data = List_Data)
 
-Pre_Data.to_csv('Pre_Data/nRC/fold_nRC5.csv', encoding='gbk')
+Pre_Data.to_csv('Pre_Data_new/NCY/fold2213.csv', encoding='gbk')

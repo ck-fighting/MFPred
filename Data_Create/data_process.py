@@ -5,11 +5,10 @@ import gensim
 from gensim.models import word2vec as wv
 import itertools
 from gensim.models import Word2Vec
-
-train_path = "/media/disk/chenkai/ncRNA_Family_Prediction/new_Ten_Fold_Data/train_0"
-test_path = "/media/disk/chenkai/ncRNA_Family_Prediction/new_Ten_Fold_Data/test_0"
+train_path = "F:/桌面/ck 返稿修改/MFPred-master/new_Ten_Fold_Data/training-set-corrected.fasta"
+test_path = "F:/桌面/ck 返稿修改/MFPred-master/new_Ten_Fold_Data/test-set-corrected.fasta"
 # all_path = "C:/Users/Administrator/Desktop/ncRNA_Family_Prediction/new_Ten_Fold_Data/All.fasta"
-Word_model_path = "/media/disk/chenkai/ncRNA_Family_Prediction/Trained-Model/glove.txt"
+Word_model_path = "F:/桌面/ck 返稿修改/MFPred-master/Trained_model/word2vec_new.txt"
 
 # def getRNASequence_3kmer():
 #     RNA_Sequence = []
